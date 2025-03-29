@@ -14,16 +14,16 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddMassTransit(x =>
 {
     x.AddRequestClient<GetUserRequest>();
-    x.AddBus(provider => Bus.Factory.CreateUsingRabbitMq(config =>
+    x.UsingRabbitMq((context, config) =>
     {
-        config.Host(new Uri("rabbitmq://localhost"), h =>
+        var uri = new Uri(Environment.GetEnvironmentVariable("RABBITMQ_URI") ?? null);
+        config.Host(uri, h =>
         {
-            h.Username("guest");
-            h.Password("guest");
+            h.Username(Environment.GetEnvironmentVariable("RABBITMQ_USER") ?? null);
+            h.Password(Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD") ?? null);
         });
-    }));
+    });
 });
-builder.Services.AddMassTransitHostedService();
 
 // Add logging configuration
 builder.Logging.ClearProviders();
@@ -35,9 +35,6 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI();
 
-app.UseHttpsRedirection();
-app.UseAuthorization();
 app.MapControllers();
-app.UseCors(options => options.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
 
 app.Run();
