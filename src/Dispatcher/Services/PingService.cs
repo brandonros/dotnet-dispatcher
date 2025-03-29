@@ -1,24 +1,27 @@
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
 using Dispatcher.Model;
+using Dispatcher.Model.Requests;
+using Dispatcher.Model.Responses;
 
 namespace Dispatcher.Services
 {
     public interface IPingService
     {
-        Task<IActionResult> HandlePing(JsonElement requestElement, string id);
+        Task<IActionResult> HandlePing(PingRequest request, string id);
     }
 
     public class PingService : IPingService
     {
-        public async Task<IActionResult> HandlePing(JsonElement requestElement, string id)
+        public async Task<IActionResult> HandlePing(PingRequest request, string id)
         {
             // Simple ping implementation that returns a success response
-            return new OkObjectResult(new JsonRpcSuccessResponse<string>
+            return new OkObjectResult(new JsonRpcSuccessResponse<PingResponse>
             {
                 Id = id,
-                Result = "pong"
+                Result = new PingResponse
+                {
+                    Message = "pong"
+                }
             });
         }
     }

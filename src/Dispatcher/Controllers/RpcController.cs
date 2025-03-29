@@ -6,6 +6,7 @@ using System.Text.Json;
 using Dispatcher.Model;
 using Dispatcher.Services;
 using System.ComponentModel.DataAnnotations;
+using Dispatcher.Model.Requests;
 
 namespace Dispatcher.Controllers
 {
@@ -42,7 +43,7 @@ namespace Dispatcher.Controllers
         [ProducesResponseType(typeof(JsonRpcSuccessResponse<string>), 200)]
         [ProducesResponseType(typeof(JsonRpcErrorResponse), 400)]
         [ProducesResponseType(typeof(JsonRpcErrorResponse), 500)]
-        public async Task<IActionResult> HandleRpc([FromBody] JsonRpcRequest<object> request)
+        public async Task<IActionResult> HandleRpc([FromBody] JsonRpcRequest request)
         {
             try
             {
@@ -99,7 +100,24 @@ namespace Dispatcher.Controllers
                             _logger.LogError("Failed to resolve IPingService");
                             return CreateInternalErrorResponse(id);
                         }
-                        return await pingService.HandlePing(JsonSerializer.SerializeToElement(request), id);
+                        try
+                        {
+                            var pingParams = request.GetPingParams();
+                            return await pingService.HandlePing(pingParams, id);
+                        }
+                        catch (JsonException ex)
+                        {
+                            _logger.LogError(ex, "Error parsing ping parameters");
+                            return BadRequest(new JsonRpcErrorResponse
+                            {
+                                Id = id,
+                                Error = new JsonRpcError
+                                {
+                                    Code = -32602,
+                                    Message = "Invalid params"
+                                }
+                            });
+                        }
                     
                     // You can add more method cases here
                     

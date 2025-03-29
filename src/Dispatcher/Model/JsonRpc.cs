@@ -1,6 +1,9 @@
 using System.Text.Json.Serialization;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using Dispatcher.Model.Requests;
+using System.Text.Json;
+using System.ComponentModel;
 
 namespace Dispatcher.Model;
 
@@ -41,13 +44,14 @@ public enum JsonRpcMethod
 /// <summary>
 /// JSON-RPC request model
 /// </summary>
-public class JsonRpcRequest<TRequest>
+public class JsonRpcRequest
 {
     /// <summary>
     /// JSON-RPC protocol version
     /// </summary>
     /// <example>2.0</example>
     [JsonPropertyName("jsonrpc")]
+    [DefaultValue("2.0")]
     public string JsonRpc { get; set; } = "2.0";
 
     /// <summary>
@@ -61,15 +65,36 @@ public class JsonRpcRequest<TRequest>
     /// The parameters for the method
     /// </summary>
     [JsonPropertyName("params")]
-    public TRequest Params { get; set; }
+    [DefaultValue(null)]
+    public object Params { get; set; }
 
     /// <summary>
     /// The request identifier (must be a valid GUID/UUID)
     /// </summary>
-    /// <example>123e4567-e89b-12d3-a456-426614174000</example>
+    /// <example>a81bc81b-dead-4e5d-abff-90865d1e13b1</example>
     [JsonPropertyName("id")]
     [Guid]
+    [DefaultValue("a81bc81b-dead-4e5d-abff-90865d1e13b1")]
     public string Id { get; set; }
+
+    /// <summary>
+    /// Gets the parameters as a PingRequest if the method is Ping
+    /// </summary>
+    public PingRequest GetPingParams()
+    {
+        if (Method != JsonRpcMethod.Ping)
+        {
+            throw new InvalidOperationException("Method is not ping");
+        }
+
+        if (Params == null)
+        {
+            return new PingRequest();
+        }
+
+        var json = JsonSerializer.Serialize(Params);
+        return JsonSerializer.Deserialize<PingRequest>(json);
+    }
 }
 
 /// <summary>
