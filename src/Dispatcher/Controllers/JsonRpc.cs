@@ -44,16 +44,22 @@ namespace Dispatcher.Controllers
                     });
                 }
 
-                string method = methodElement.GetString();
+                string methodStr = methodElement.GetString();
                 string id = idElement.GetString();
+
+                // Try to parse the method string to enum
+                if (!Enum.TryParse<JsonRpcMethod>(methodStr, true, out var method))
+                {
+                    return CreateMethodNotFoundResponse(id);
+                }
 
                 // Log the incoming request
                 _logger.LogInformation($"RPC request received: {method} with id {id}");
 
-                // Dynamic method routing based on the method name
+                // Dynamic method routing based on the method enum
                 switch (method)
                 {
-                    case "ping":
+                    case JsonRpcMethod.Ping:
                         var pingService = _serviceProvider.GetService(typeof(IPingService)) as IPingService;
                         if (pingService == null)
                         {

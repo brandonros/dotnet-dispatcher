@@ -2,13 +2,19 @@ using System.Text.Json.Serialization;
 
 namespace Dispatcher.Model;
 
+public enum JsonRpcMethod
+{
+    [JsonPropertyName("ping")]
+    Ping
+}
+
 public class JsonRpcRequest<TRequest>
 {
     [JsonPropertyName("jsonrpc")]
     public string JsonRpc { get; set; } = "2.0";
 
     [JsonPropertyName("method")]
-    public string Method { get; set; }
+    public JsonRpcMethod Method { get; set; }
 
     [JsonPropertyName("params")]
     public TRequest Params { get; set; }
