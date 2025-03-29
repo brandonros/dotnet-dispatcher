@@ -38,7 +38,13 @@ public enum JsonRpcMethod
     /// Ping method to check service availability
     /// </summary>
     [JsonPropertyName("ping")]
-    Ping
+    Ping,
+
+    /// <summary>
+    /// Queue request method to send a request to a queue
+    /// </summary>
+    [JsonPropertyName("user.get")]
+    GetUser
 }
 
 /// <summary>
@@ -94,6 +100,25 @@ public class JsonRpcRequest
 
         var json = JsonSerializer.Serialize(Params);
         return JsonSerializer.Deserialize<PingRequest>(json);
+    }
+
+    /// <summary>
+    /// Gets the parameters as a GetUserRequest if the method is GetUser
+    /// </summary>
+    public GetUserRequest GetGetUserParams()
+    {
+        if (Method != JsonRpcMethod.GetUser)
+        {
+            throw new InvalidOperationException("Method is not get user");
+        }
+
+        if (Params == null)
+        {
+            return new GetUserRequest();
+        }
+
+        var json = JsonSerializer.Serialize(Params);
+        return JsonSerializer.Deserialize<GetUserRequest>(json);
     }
 }
 

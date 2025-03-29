@@ -1,7 +1,4 @@
-using System;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using Dispatcher.Model;
 using Dispatcher.Services;
@@ -119,7 +116,32 @@ namespace Dispatcher.Controllers
                             });
                         }
                     
-                    // You can add more method cases here
+                    case JsonRpcMethod.GetUser:
+                        var queueService = _serviceProvider.GetService(typeof(IQueueService<GetUserRequest, GetUserResponse>)) as IQueueService<GetUserRequest, GetUserResponse>;
+                        if (queueService == null)
+                        {
+                            _logger.LogError("Failed to resolve IQueueService<GetUserRequest, GetUserResponse>");
+                            return CreateInternalErrorResponse(id);
+                        }
+                        try
+                        {
+                            var getUserParams = request.GetGetUserParams();
+                            var response = await queueService.RequestResponse(getUserParams);
+                            return Ok(response);
+                        }
+                        catch (JsonException ex)
+                        {
+                            _logger.LogError(ex, "Error parsing get user parameters");
+                            return BadRequest(new JsonRpcErrorResponse
+                            {
+                                Id = id,
+                                Error = new JsonRpcError
+                                {
+                                    Code = -32602,
+                                    Message = "Invalid params"
+                                }
+                            });
+                        }
                     
                     default:
                         return CreateMethodNotFoundResponse(id);
