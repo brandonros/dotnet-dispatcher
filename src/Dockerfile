@@ -1,22 +1,21 @@
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-USER app
-WORKDIR /app
-EXPOSE 8080
-
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["PuppeteerPdfGenerator.Api/PuppeteerPdfGenerator.Api.csproj", "PuppeteerPdfGenerator.Api/"]
-RUN dotnet restore "./PuppeteerPdfGenerator.Api/PuppeteerPdfGenerator.Api.csproj"
+COPY ["Dispatcher/Dispatcher.csproj", "Dispatcher/"]
+RUN dotnet restore "./Dispatcher/Dispatcher.csproj"
 COPY . .
-WORKDIR "/src/PuppeteerPdfGenerator.Api"
-RUN dotnet build "./PuppeteerPdfGenerator.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
+WORKDIR "/src/Dispatcher"
+RUN dotnet build "./Dispatcher.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./PuppeteerPdfGenerator.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "./Dispatcher.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+USER app
+WORKDIR /app
 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "PuppeteerPdfGenerator.Api.dll"]
+ENTRYPOINT ["dotnet", "Dispatcher.dll"]
