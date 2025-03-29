@@ -5,11 +5,17 @@ using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using Dispatcher.Model;
 using Dispatcher.Services;
+using System.ComponentModel.DataAnnotations;
 
 namespace Dispatcher.Controllers
 {
+    /// <summary>
+    /// JSON-RPC 2.0 API controller
+    /// </summary>
     [ApiController]
     [Route("[controller]")]
+    [Produces("application/json")]
+    [Consumes("application/json")]
     public class RpcController : ControllerBase
     {
         private readonly ILogger<RpcController> _logger;
@@ -23,15 +29,42 @@ namespace Dispatcher.Controllers
             _serviceProvider = serviceProvider;
         }
 
+        /// <summary>
+        /// Handles JSON-RPC 2.0 requests
+        /// </summary>
+        /// <param name="request">The JSON-RPC request</param>
+        /// <returns>A JSON-RPC response</returns>
+        /// <response code="200">Returns the successful response</response>
+        /// <response code="400">Returns error response for invalid requests</response>
+        /// <response code="500">Returns error response for internal server errors</response>
         [HttpPost]
         [Route("/rpc")]
-        public async Task<IActionResult> HandleRpc([FromBody] JsonElement requestElement)
+        [ProducesResponseType(typeof(JsonRpcSuccessResponse<string>), 200)]
+        [ProducesResponseType(typeof(JsonRpcErrorResponse), 400)]
+        [ProducesResponseType(typeof(JsonRpcErrorResponse), 500)]
+        public async Task<IActionResult> HandleRpc([FromBody] JsonRpcRequest<object> request)
         {
             try
             {
+                // Validate the request model
+                var validationContext = new ValidationContext(request);
+                var validationResults = new List<ValidationResult>();
+                if (!Validator.TryValidateObject(request, validationContext, validationResults, true))
+                {
+                    var error = validationResults.FirstOrDefault();
+                    return BadRequest(new JsonRpcErrorResponse
+                    {
+                        Id = null,
+                        Error = new JsonRpcError
+                        {
+                            Code = -32600,
+                            Message = error?.ErrorMessage ?? "Invalid Request"
+                        }
+                    });
+                }
+
                 // Get the method and id from the request
-                if (!requestElement.TryGetProperty("method", out var methodElement) || 
-                    !requestElement.TryGetProperty("id", out var idElement))
+                if (request == null || string.IsNullOrEmpty(request.Method.ToString()))
                 {
                     return BadRequest(new JsonRpcErrorResponse
                     {
@@ -44,8 +77,8 @@ namespace Dispatcher.Controllers
                     });
                 }
 
-                string methodStr = methodElement.GetString();
-                string id = idElement.GetString();
+                string methodStr = request.Method.ToString();
+                string id = request.Id;
 
                 // Try to parse the method string to enum
                 if (!Enum.TryParse<JsonRpcMethod>(methodStr, true, out var method))
@@ -66,7 +99,7 @@ namespace Dispatcher.Controllers
                             _logger.LogError("Failed to resolve IPingService");
                             return CreateInternalErrorResponse(id);
                         }
-                        return await pingService.HandlePing(requestElement, id);
+                        return await pingService.HandlePing(JsonSerializer.SerializeToElement(request), id);
                     
                     // You can add more method cases here
                     
