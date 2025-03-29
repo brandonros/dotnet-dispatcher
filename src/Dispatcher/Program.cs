@@ -13,7 +13,6 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddMassTransit(x =>
 {
-    x.AddRequestClient<GetUserRequest>();
     x.UsingRabbitMq((context, config) =>
     {
         var uri = new Uri(Environment.GetEnvironmentVariable("RABBITMQ_URI") ?? null);
@@ -23,6 +22,7 @@ builder.Services.AddMassTransit(x =>
             h.Password(Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD") ?? null);
         });
     });
+    x.AddRequestClient<GetUserRequest>(new Uri("queue:q.user.get"), RequestTimeout.After(s: 5));
 });
 
 // Add logging configuration
