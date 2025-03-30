@@ -1,196 +1,197 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
-using Dispatcher.Model;
+using Common.Model;
 using Dispatcher.Services;
 using System.ComponentModel.DataAnnotations;
-using Dispatcher.Model.Requests;
+using Common.Model.Requests;
+using Common.Model.Responses;
 
-namespace Dispatcher.Controllers
+namespace Dispatcher.Controllers;
+
+[ApiController]
+[Route("[controller]")]
+[Produces("application/json")]
+[Consumes("application/json")]
+public class RpcController : ControllerBase
 {
-    /// <summary>
-    /// JSON-RPC 2.0 API controller
-    /// </summary>
-    [ApiController]
-    [Route("[controller]")]
-    [Produces("application/json")]
-    [Consumes("application/json")]
-    public class RpcController : ControllerBase
+    private readonly ILogger<RpcController> _logger;
+    private readonly IServiceProvider _serviceProvider;
+    private readonly Dictionary<JsonRpcMethod, Func<JsonRpcRequestBase, string, Task<IActionResult>>> _handlers;
+
+    public RpcController(
+        ILogger<RpcController> logger,
+        IServiceProvider serviceProvider)
     {
-        private readonly ILogger<RpcController> _logger;
-        private readonly IServiceProvider _serviceProvider;
-
-        public RpcController(
-            ILogger<RpcController> logger,
-            IServiceProvider serviceProvider)
+        _logger = logger;
+        _serviceProvider = serviceProvider;
+        _handlers = new()
         {
-            _logger = logger;
-            _serviceProvider = serviceProvider;
-        }
+            { JsonRpcMethod.Ping, HandlePingRequest },
+            { JsonRpcMethod.GetUser, HandleGetUserRequest }
+        };
+    }
 
-        /// <summary>
-        /// Handles JSON-RPC 2.0 requests
-        /// </summary>
-        /// <param name="request">The JSON-RPC request</param>
-        /// <returns>A JSON-RPC response</returns>
-        /// <response code="200">Returns the successful response</response>
-        /// <response code="400">Returns error response for invalid requests</response>
-        /// <response code="500">Returns error response for internal server errors</response>
-        [HttpPost]
-        [Route("/rpc")]
-        [ProducesResponseType(typeof(JsonRpcSuccessResponse<string>), 200)]
-        [ProducesResponseType(typeof(JsonRpcErrorResponse), 400)]
-        [ProducesResponseType(typeof(JsonRpcErrorResponse), 500)]
-        public async Task<IActionResult> HandleRpc([FromBody] JsonRpcRequest request)
+    [HttpPost]
+    [Route("/rpc")]
+    [ProducesResponseType(typeof(JsonRpcSuccessResponse<object>), 200)]
+    [ProducesResponseType(typeof(JsonRpcErrorResponse), 400)]
+    [ProducesResponseType(typeof(JsonRpcErrorResponse), 500)]
+    public async Task<IActionResult> HandleRpc([FromBody] JsonRpcRequestBase request)
+    {
+        try
         {
-            try
+            if (!ValidateRequest(request, out var errorResponse))
             {
-                // Validate the request model
-                var validationContext = new ValidationContext(request);
-                var validationResults = new List<ValidationResult>();
-                if (!Validator.TryValidateObject(request, validationContext, validationResults, true))
-                {
-                    var error = validationResults.FirstOrDefault();
-                    return BadRequest(new JsonRpcErrorResponse
-                    {
-                        Id = null,
-                        Error = new JsonRpcError
-                        {
-                            Code = -32600,
-                            Message = error?.ErrorMessage ?? "Invalid Request"
-                        }
-                    });
-                }
-
-                // Get the method and id from the request
-                if (request == null || string.IsNullOrEmpty(request.Method.ToString()))
-                {
-                    return BadRequest(new JsonRpcErrorResponse
-                    {
-                        Id = null,
-                        Error = new JsonRpcError
-                        {
-                            Code = -32600,
-                            Message = "Invalid Request"
-                        }
-                    });
-                }
-
-                string methodStr = request.Method.ToString();
-                string id = request.Id;
-
-                // Try to parse the method string to enum
-                if (!Enum.TryParse<JsonRpcMethod>(methodStr, true, out var method))
-                {
-                    return CreateMethodNotFoundResponse(id);
-                }
-
-                // Log the incoming request
-                _logger.LogInformation($"RPC request received: {method} with id {id}");
-
-                // Dynamic method routing based on the method enum
-                switch (method)
-                {
-                    case JsonRpcMethod.Ping:
-                        var pingService = _serviceProvider.GetService(typeof(IPingService)) as IPingService;
-                        if (pingService == null)
-                        {
-                            _logger.LogError("Failed to resolve IPingService");
-                            return CreateInternalErrorResponse(id);
-                        }
-                        try
-                        {
-                            var pingParams = request.GetPingParams();
-                            return await pingService.HandlePing(pingParams, id);
-                        }
-                        catch (JsonException ex)
-                        {
-                            _logger.LogError(ex, "Error parsing ping parameters");
-                            return BadRequest(new JsonRpcErrorResponse
-                            {
-                                Id = id,
-                                Error = new JsonRpcError
-                                {
-                                    Code = -32602,
-                                    Message = "Invalid params"
-                                }
-                            });
-                        }
-                    
-                    case JsonRpcMethod.GetUser:
-                        var queueService = _serviceProvider.GetService(typeof(IQueueService<GetUserRequest, GetUserResponse>)) as IQueueService<GetUserRequest, GetUserResponse>;
-                        if (queueService == null)
-                        {
-                            _logger.LogError("Failed to resolve IQueueService<GetUserRequest, GetUserResponse>");
-                            return CreateInternalErrorResponse(id);
-                        }
-                        try
-                        {
-                            var getUserParams = request.GetGetUserParams();
-                            var response = await queueService.RequestResponse(getUserParams);
-                            return Ok(response);
-                        }
-                        catch (JsonException ex)
-                        {
-                            _logger.LogError(ex, "Error parsing get user parameters");
-                            return BadRequest(new JsonRpcErrorResponse
-                            {
-                                Id = id,
-                                Error = new JsonRpcError
-                                {
-                                    Code = -32602,
-                                    Message = "Invalid params"
-                                }
-                            });
-                        }
-                    
-                    default:
-                        return CreateMethodNotFoundResponse(id);
-                }
+                return errorResponse;
             }
-            catch (JsonException ex)
-            {
-                _logger.LogError(ex, "Error parsing JSON-RPC request");
-                return BadRequest(new JsonRpcErrorResponse
-                {
-                    Id = null,
-                    Error = new JsonRpcError
-                    {
-                        Code = -32700,
-                        Message = "Parse error"
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error processing RPC request");
-                return CreateInternalErrorResponse(null);
-            }
-        }
 
-        private IActionResult CreateMethodNotFoundResponse(string id)
-        {
-            return BadRequest(new JsonRpcErrorResponse
-            {
-                Id = id,
-                Error = new JsonRpcError
-                {
-                    Code = -32601,
-                    Message = "Method not found"
-                }
-            });
-        }
+            string methodStr = request.Method.ToString();
+            string id = request.Id;
 
-        private IActionResult CreateInternalErrorResponse(string id)
-        {
-            return StatusCode(500, new JsonRpcErrorResponse
+            _logger.LogInformation($"RPC request received: {methodStr} with id {id}");
+
+            if (!_handlers.TryGetValue(request.Method, out var handler))
             {
-                Id = id,
-                Error = new JsonRpcError
-                {
-                    Code = -32603,
-                    Message = "Internal error"
-                }
-            });
+                return CreateMethodNotFoundResponse(id);
+            }
+
+            return await handler(request, id);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Error parsing JSON-RPC request");
+            return CreateParseErrorResponse();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing RPC request");
+            return CreateInternalErrorResponse(null);
         }
     }
+
+    private async Task<IActionResult> HandlePingRequest(JsonRpcRequestBase request, string id)
+    {
+        var pingService = _serviceProvider.GetService<IPingService>();
+        if (pingService == null)
+        {
+            _logger.LogError("Failed to resolve IPingService");
+            return CreateInternalErrorResponse(id);
+        }
+
+        try
+        {
+            if (request is not PingJsonRpcRequest pingRequest)
+            {
+                return CreateInvalidParamsResponse(id);
+            }
+            return await pingService.HandlePing(pingRequest.Params, id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling ping request");
+            return CreateInvalidParamsResponse(id);
+        }
+    }
+
+    private async Task<IActionResult> HandleGetUserRequest(JsonRpcRequestBase request, string id)
+    {
+        var queueService = _serviceProvider.GetService<IQueueService<GetUserRequest, GetUserResponse>>();
+        if (queueService == null)
+        {
+            _logger.LogError("Failed to resolve IQueueService<GetUserRequest, GetUserResponse>");
+            return CreateInternalErrorResponse(id);
+        }
+
+        try
+        {
+            if (request is not GetUserJsonRpcRequest getUserRequest)
+            {
+                return CreateInvalidParamsResponse(id);
+            }
+            var response = await queueService.RequestResponse(getUserRequest.Params);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling get user request");
+            return CreateInvalidParamsResponse(id);
+        }
+    }
+
+    private bool ValidateRequest(JsonRpcRequestBase request, out IActionResult errorResponse)
+    {
+        // Validate the request model
+        var validationContext = new ValidationContext(request);
+        var validationResults = new List<ValidationResult>();
+        if (!Validator.TryValidateObject(request, validationContext, validationResults, true))
+        {
+            var error = validationResults.FirstOrDefault();
+            errorResponse = CreateInvalidRequestResponse(error?.ErrorMessage);
+            return false;
+        }
+
+        if (request == null || string.IsNullOrEmpty(request.Method.ToString()))
+        {
+            errorResponse = CreateInvalidRequestResponse("Invalid Request");
+            return false;
+        }
+
+        errorResponse = null;
+        return true;
+    }
+
+    private IActionResult CreateInvalidRequestResponse(string message) =>
+        BadRequest(new JsonRpcErrorResponse
+        {
+            Id = null,
+            Error = new JsonRpcError
+            {
+                Code = -32600,
+                Message = message ?? "Invalid Request"
+            }
+        });
+
+    private IActionResult CreateMethodNotFoundResponse(string id) =>
+        BadRequest(new JsonRpcErrorResponse
+        {
+            Id = id,
+            Error = new JsonRpcError
+            {
+                Code = -32601,
+                Message = "Method not found"
+            }
+        });
+
+    private IActionResult CreateInvalidParamsResponse(string id) =>
+        BadRequest(new JsonRpcErrorResponse
+        {
+            Id = id,
+            Error = new JsonRpcError
+            {
+                Code = -32602,
+                Message = "Invalid params"
+            }
+        });
+
+    private IActionResult CreateParseErrorResponse() =>
+        BadRequest(new JsonRpcErrorResponse
+        {
+            Id = null,
+            Error = new JsonRpcError
+            {
+                Code = -32700,
+                Message = "Parse error"
+            }
+        });
+
+    private IActionResult CreateInternalErrorResponse(string id) =>
+        StatusCode(500, new JsonRpcErrorResponse
+        {
+            Id = id,
+            Error = new JsonRpcError
+            {
+                Code = -32603,
+                Message = "Internal error"
+            }
+        });
 }

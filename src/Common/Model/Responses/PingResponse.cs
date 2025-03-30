@@ -1,4 +1,4 @@
-namespace Dispatcher.Model.Responses;
+namespace Common.Model.Responses;
 
 public class PingResponse
 {

@@ -1,11 +1,11 @@
 using System.Text.Json.Serialization;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
-using Dispatcher.Model.Requests;
+using Common.Model.Requests;
 using System.Text.Json;
 using System.ComponentModel;
 
-namespace Dispatcher.Model;
+namespace Common.Model;
 
 /// <summary>
 /// Validates that a string is a valid GUID/UUID
@@ -31,94 +31,73 @@ public class GuidAttribute : ValidationAttribute
 /// <summary>
 /// Available JSON-RPC methods
 /// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum JsonRpcMethod
+public class JsonRpcMethod
 {
-    /// <summary>
-    /// Ping method to check service availability
-    /// </summary>
-    [JsonPropertyName("ping")]
-    Ping,
-
-    /// <summary>
-    /// Queue request method to send a request to a queue
-    /// </summary>
-    [JsonPropertyName("user.get")]
-    GetUser
+    private readonly string _method;
+    
+    public JsonRpcMethod(string method)
+    {
+        _method = method ?? throw new ArgumentNullException(nameof(method));
+    }
+    
+    public static JsonRpcMethod Ping => new("ping");
+    public static JsonRpcMethod GetUser => new("user.get");
+    
+    public override string ToString() => _method;
+    
+    public static implicit operator string(JsonRpcMethod method) => method.ToString();
+    public static implicit operator JsonRpcMethod(string method) => new(method);
 }
 
 /// <summary>
-/// JSON-RPC request model
+/// Base interface for all JSON-RPC parameter types
 /// </summary>
-public class JsonRpcRequest
+public interface IJsonRpcParams { }
+
+/// <summary>
+/// Base class for JSON-RPC requests that enforces type safety with method parameters
+/// </summary>
+public abstract class JsonRpcRequestBase
 {
-    /// <summary>
-    /// JSON-RPC protocol version
-    /// </summary>
-    /// <example>2.0</example>
     [JsonPropertyName("jsonrpc")]
     [DefaultValue("2.0")]
     public string JsonRpc { get; set; } = "2.0";
 
-    /// <summary>
-    /// The method to be invoked
-    /// </summary>
-    /// <example>ping</example>
     [JsonPropertyName("method")]
     public JsonRpcMethod Method { get; set; }
 
-    /// <summary>
-    /// The parameters for the method
-    /// </summary>
-    [JsonPropertyName("params")]
-    [DefaultValue(null)]
-    public object Params { get; set; }
-
-    /// <summary>
-    /// The request identifier (must be a valid GUID/UUID)
-    /// </summary>
-    /// <example>a81bc81b-dead-4e5d-abff-90865d1e13b1</example>
     [JsonPropertyName("id")]
     [Guid]
     [DefaultValue("a81bc81b-dead-4e5d-abff-90865d1e13b1")]
     public string Id { get; set; }
+}
 
-    /// <summary>
-    /// Gets the parameters as a PingRequest if the method is Ping
-    /// </summary>
-    public PingRequest GetPingParams()
+/// <summary>
+/// Strongly-typed JSON-RPC request
+/// </summary>
+public class JsonRpcRequest<T> : JsonRpcRequestBase where T : IJsonRpcParams
+{
+    [JsonPropertyName("params")]
+    [DefaultValue(null)]
+    public T Params { get; set; }
+}
+
+/// <summary>
+/// Method-specific request types for better type safety and discoverability
+/// </summary>
+public class PingJsonRpcRequest : JsonRpcRequest<PingRequest>
+{
+    public PingJsonRpcRequest()
     {
-        if (Method != JsonRpcMethod.Ping)
-        {
-            throw new InvalidOperationException("Method is not ping");
-        }
-
-        if (Params == null)
-        {
-            return new PingRequest();
-        }
-
-        var json = JsonSerializer.Serialize(Params);
-        return JsonSerializer.Deserialize<PingRequest>(json);
+        Method = JsonRpcMethod.Ping;
     }
+}
 
-    /// <summary>
-    /// Gets the parameters as a GetUserRequest if the method is GetUser
-    /// </summary>
-    public GetUserRequest GetGetUserParams()
+public class GetUserJsonRpcRequest : JsonRpcRequest<GetUserRequest>
+{
+    public GetUserJsonRpcRequest()
     {
-        if (Method != JsonRpcMethod.GetUser)
-        {
-            throw new InvalidOperationException("Method is not get user");
-        }
-
-        if (Params == null)
-        {
-            return new GetUserRequest();
-        }
-
-        var json = JsonSerializer.Serialize(Params);
-        return JsonSerializer.Deserialize<GetUserRequest>(json);
+        Method = JsonRpcMethod.GetUser;
     }
 }
 

@@ -3,7 +3,7 @@ using Common.Model.Requests;
 using Common.Model.Responses;
 using Common.Model;
 
-namespace Dispatcher.Services
+namespace Consumer.Services
 {
     public interface IPingService
     {

@@ -1,27 +1,35 @@
-using Common.Model.Requests;
-using Dispatcher.Services;
+using Consumer.Handlers;
+using Consumer.Services;
 using MassTransit;
-namespace Dispatcher.Extensions;
+using Common.Model;
+using Common.Model.Requests;
+
+namespace Consumer.Extensions;
 
 public static class ServiceCollectionExtensions
 {
     public static IServiceCollection RegisterServices(this IServiceCollection services)
     {
-        services.AddScoped<IPingService, PingService>();
-        services.AddScoped(typeof(IQueueService<,>), typeof(QueueService<,>));
+        // Register your handlers
+        services.AddScoped<GetUserHandler>();
+
+        // Configure MassTransit
         services.AddMassTransit(x =>
         {
+            x.AddConsumer<GetUserHandler>();
+
             x.UsingRabbitMq((context, config) =>
             {
                 var uri = new Uri(Environment.GetEnvironmentVariable("RABBITMQ_URI") ?? null);
-                config.Host(uri, h =>
+                config.Host(uri, "/", h =>
                 {
                     h.Username(Environment.GetEnvironmentVariable("RABBITMQ_USER") ?? null);
                     h.Password(Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD") ?? null);
                 });
+                config.ConfigureEndpoints(context);
             });
-            x.AddRequestClient<GetUserRequest>(new Uri("queue:q.user.get"), RequestTimeout.After(s: 5));
         });
+
         return services;
     }
 }

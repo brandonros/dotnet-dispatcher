@@ -1,2 +1,3 @@
-# dotnet-dispatcher
-HTTP microservice that brokers to/from RabbitMQ consumers with MassTransit
+# dotnet-message-hub
+
+HTTP microservices that brokers to/from RabbitMQ with MassTransit

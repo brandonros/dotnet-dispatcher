@@ -1,11 +1,11 @@
 using System.Text.Json.Serialization;
 
-namespace Dispatcher.Model.Requests;
+namespace Common.Model.Requests;
 
 /// <summary>
 /// Parameters for the ping method
 /// </summary>
-public class PingRequest
+public class PingRequest : IJsonRpcParams
 {
 
 }

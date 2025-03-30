@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Dispatcher.Model.Requests;
+namespace Common.Model.Responses;
 
 /// <summary>
 /// Parameters for the ping method
