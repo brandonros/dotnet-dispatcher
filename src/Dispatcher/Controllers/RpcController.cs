@@ -26,7 +26,6 @@ public class RpcController : ControllerBase
         _serviceProvider = serviceProvider;
         _handlers = new()
         {
-            { JsonRpcMethod.Ping, HandlePingRequest },
             { JsonRpcMethod.GetUser, HandleGetUserRequest }
         };
     }
@@ -66,30 +65,6 @@ public class RpcController : ControllerBase
         {
             _logger.LogError(ex, "Error processing RPC request");
             return CreateInternalErrorResponse(null);
-        }
-    }
-
-    private async Task<IActionResult> HandlePingRequest(JsonRpcRequestBase request, string id)
-    {
-        var pingService = _serviceProvider.GetService<IPingService>();
-        if (pingService == null)
-        {
-            _logger.LogError("Failed to resolve IPingService");
-            return CreateInternalErrorResponse(id);
-        }
-
-        try
-        {
-            if (request is not PingJsonRpcRequest pingRequest)
-            {
-                return CreateInvalidParamsResponse(id);
-            }
-            return await pingService.HandlePing(pingRequest.Params, id);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error handling ping request");
-            return CreateInvalidParamsResponse(id);
         }
     }
 

@@ -1,8 +1,5 @@
 using Consumer.Handlers;
-using Consumer.Services;
 using MassTransit;
-using Common.Model;
-using Common.Model.Requests;
 
 namespace Consumer.Extensions;
 

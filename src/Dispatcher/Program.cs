@@ -1,6 +1,4 @@
 using Dispatcher.Extensions;
-using MassTransit;
-using Common.Model.Requests;
 
 var builder = WebApplication.CreateBuilder(args);
 

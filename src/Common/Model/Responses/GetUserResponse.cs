@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace Common.Model.Responses;
 
 /// <summary>
-/// Parameters for the ping method
+/// Parameters for the GetUser method
 /// </summary>
 public class GetUserResponse
 {

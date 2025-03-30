@@ -39,8 +39,7 @@ public class JsonRpcMethod
     {
         _method = method ?? throw new ArgumentNullException(nameof(method));
     }
-    
-    public static JsonRpcMethod Ping => new("ping");
+
     public static JsonRpcMethod GetUser => new("user.get");
     
     public override string ToString() => _method;
@@ -85,14 +84,6 @@ public class JsonRpcRequest<T> : JsonRpcRequestBase where T : IJsonRpcParams
 /// <summary>
 /// Method-specific request types for better type safety and discoverability
 /// </summary>
-public class PingJsonRpcRequest : JsonRpcRequest<PingRequest>
-{
-    public PingJsonRpcRequest()
-    {
-        Method = JsonRpcMethod.Ping;
-    }
-}
-
 public class GetUserJsonRpcRequest : JsonRpcRequest<GetUserRequest>
 {
     public GetUserJsonRpcRequest()
