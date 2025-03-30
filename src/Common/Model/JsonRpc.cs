@@ -58,6 +58,11 @@ public interface IJsonRpcParams { }
 /// </summary>
 public abstract class JsonRpcRequestBase
 {
+    protected JsonRpcRequestBase()
+    {
+        // Parameterless constructor for JSON deserialization
+    }
+
     [JsonPropertyName("jsonrpc")]
     [DefaultValue("2.0")]
     public string JsonRpc { get; set; } = "2.0";
