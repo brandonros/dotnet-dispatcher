@@ -27,6 +27,7 @@ public static class ServiceCollectionExtensions
                     e.Bind("x.user.get");
                     e.ConfigureConsumer<GetUserHandler>(context);
                 });
+                config.ConfigureEndpoints(context);
             });
         });
 
