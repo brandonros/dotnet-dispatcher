@@ -13,7 +13,7 @@ public static class ServiceCollectionExtensions
             x.UsingRabbitMq((context, config) =>
             {
                 var uri = new Uri(Environment.GetEnvironmentVariable("RABBITMQ_URI") ?? null);
-                config.Host(uri, h =>
+                config.Host(uri, "/", h =>
                 {
                     h.Username(Environment.GetEnvironmentVariable("RABBITMQ_USER") ?? null);
                     h.Password(Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD") ?? null);
