@@ -12,6 +12,7 @@ public static class ServiceCollectionExtensions
         // Configure MassTransit
         services.AddMassTransit(x =>
         {
+            x.AddConsumer<GetUserHandler>();
             x.UsingRabbitMq((context, config) =>
             {
                 var uri = new Uri(Environment.GetEnvironmentVariable("RABBITMQ_URI") ?? null);
@@ -20,9 +21,11 @@ public static class ServiceCollectionExtensions
                     h.Username(Environment.GetEnvironmentVariable("RABBITMQ_USER") ?? null);
                     h.Password(Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD") ?? null);
                 });
-                config.ConfigureEndpoints(context);
+                config.ReceiveEndpoint("q.user.get", e =>
+                {
+                    e.ConfigureConsumer<GetUserHandler>(context);
+                });
             });
-            x.AddConsumer<GetUserHandler>();
         });
 
         return services;
