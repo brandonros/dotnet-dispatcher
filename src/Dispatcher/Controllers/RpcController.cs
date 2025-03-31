@@ -39,6 +39,11 @@ public class RpcController : ControllerBase
     {
         try
         {
+            if (request == null)
+            {
+                return CreateInvalidRequestResponse("Invalid request");
+            }
+
             if (!ValidateRequest(request, out var errorResponse))
             {
                 return errorResponse;
@@ -49,12 +54,14 @@ public class RpcController : ControllerBase
 
             _logger.LogInformation($"RPC request received: {methodStr} with id {id}");
 
-            if (!_handlers.TryGetValue(request.Method, out var handler))
+            // Type-specific handling based on the concrete type
+            switch (request)
             {
-                return CreateMethodNotFoundResponse(id);
+                case GetUserJsonRpcRequest getUserRequest:
+                    return await HandleGetUserRequest(getUserRequest, id);
+                default:
+                    return CreateMethodNotFoundResponse(id);
             }
-
-            return await handler(request, id);
         }
         catch (JsonException ex)
         {
@@ -79,8 +86,10 @@ public class RpcController : ControllerBase
 
         try
         {
+            // this is being hit
             if (request is not GetUserJsonRpcRequest getUserRequest)
             {
+                _logger.LogError("Invalid request type");
                 return CreateInvalidParamsResponse(id);
             }
             var response = await queueService.RequestResponse(getUserRequest.Params);
@@ -89,7 +98,7 @@ public class RpcController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error handling get user request");
-            return CreateInvalidParamsResponse(id);
+            return CreateInternalErrorResponse(id);
         }
     }
 

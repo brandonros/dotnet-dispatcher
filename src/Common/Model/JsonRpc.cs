@@ -31,21 +31,44 @@ public class GuidAttribute : ValidationAttribute
 /// <summary>
 /// Available JSON-RPC methods
 /// </summary>
+[JsonConverter(typeof(JsonRpcMethodConverter))]
 public class JsonRpcMethod
 {
-    private readonly string _method;
-    
+    private string _method;
+
     public JsonRpcMethod(string method)
     {
         _method = method ?? throw new ArgumentNullException(nameof(method));
     }
 
     public static JsonRpcMethod GetUser => new("user.get");
-    
+
     public override string ToString() => _method;
-    
+    public override bool Equals(object obj) => obj is JsonRpcMethod other && other._method == _method;
+    public override int GetHashCode() => _method.GetHashCode();
+
     public static implicit operator string(JsonRpcMethod method) => method.ToString();
     public static implicit operator JsonRpcMethod(string method) => new(method);
+}
+
+public class JsonRpcMethodConverter : JsonConverter<JsonRpcMethod>
+{
+    public override JsonRpcMethod Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            return new JsonRpcMethod(reader.GetString());
+        }
+        else
+        {
+            throw new JsonException($"Unable to convert {reader.TokenType} to JsonRpcMethod.");
+        }
+    }
+
+    public override void Write(Utf8JsonWriter writer, JsonRpcMethod value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value.ToString());
+    }
 }
 
 /// <summary>
@@ -56,11 +79,11 @@ public interface IJsonRpcParams { }
 /// <summary>
 /// Base class for JSON-RPC requests that enforces type safety with method parameters
 /// </summary>
-public abstract class JsonRpcRequestBase
+[JsonConverter(typeof(JsonRpcRequestConverter))]
+public class JsonRpcRequestBase
 {
-    protected JsonRpcRequestBase()
+    public JsonRpcRequestBase()
     {
-        // Parameterless constructor for JSON deserialization
     }
 
     [JsonPropertyName("jsonrpc")]
@@ -74,6 +97,39 @@ public abstract class JsonRpcRequestBase
     [Guid]
     [DefaultValue("a81bc81b-dead-4e5d-abff-90865d1e13b1")]
     public string Id { get; set; }
+    
+    [JsonPropertyName("params")]
+    public JsonElement? Params { get; set; }
+}
+
+public class JsonRpcRequestConverter : JsonConverter<JsonRpcRequestBase>
+{
+    public override JsonRpcRequestBase Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.StartObject)
+            throw new JsonException();
+            
+        using var jsonDoc = JsonDocument.ParseValue(ref reader);
+        var root = jsonDoc.RootElement;
+        var methodProp = root.GetProperty("method");
+        var method = methodProp.GetString();
+        
+        // Create the appropriate request type based on the method
+        JsonRpcRequestBase request = method switch
+        {
+            "user.get" => new GetUserJsonRpcRequest(),
+            _ => new JsonRpcRequestBase()
+        };
+        
+        // Deserialize into the specific type
+        return JsonSerializer.Deserialize(root.GetRawText(), request.GetType(), options) as JsonRpcRequestBase
+            ?? throw new JsonException("Failed to deserialize request");
+    }
+    
+    public override void Write(Utf8JsonWriter writer, JsonRpcRequestBase value, JsonSerializerOptions options)
+    {
+        JsonSerializer.Serialize(writer, value, value.GetType(), options);
+    }
 }
 
 /// <summary>
@@ -83,7 +139,7 @@ public class JsonRpcRequest<T> : JsonRpcRequestBase where T : IJsonRpcParams
 {
     [JsonPropertyName("params")]
     [DefaultValue(null)]
-    public T Params { get; set; }
+    public new T Params { get; set; }
 }
 
 /// <summary>
