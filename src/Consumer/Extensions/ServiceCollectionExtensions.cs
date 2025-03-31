@@ -13,6 +13,7 @@ public static class ServiceCollectionExtensions
         services.AddMassTransit(x =>
         {
             x.AddConsumer<GetUserHandler>();
+
             x.UsingRabbitMq((context, config) =>
             {
                 var uri = new Uri(Environment.GetEnvironmentVariable("RABBITMQ_URI") ?? null);
@@ -23,6 +24,7 @@ public static class ServiceCollectionExtensions
                 });
                 config.ReceiveEndpoint("q.user.get", e =>
                 {
+                    e.Bind("x.user.get");
                     e.ConfigureConsumer<GetUserHandler>(context);
                 });
             });

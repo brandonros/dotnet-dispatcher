@@ -18,8 +18,9 @@ public static class ServiceCollectionExtensions
                     h.Username(Environment.GetEnvironmentVariable("RABBITMQ_USER") ?? null);
                     h.Password(Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD") ?? null);
                 });
+                config.ConfigureEndpoints(context);
             });
-            x.AddRequestClient<GetUserRequest>(new Uri("queue:q.user.get"), RequestTimeout.After(s: 5));
+            x.AddRequestClient<GetUserRequest>(new Uri("exchange:x.user.get"), RequestTimeout.After(s: 5));
         });
         return services;
     }
