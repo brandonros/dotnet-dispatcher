@@ -154,55 +154,63 @@ public class GetUserJsonRpcRequest : JsonRpcRequest<GetUserRequest>
 }
 
 /// <summary>
-/// JSON-RPC success response model
+/// Base class for all JSON-RPC responses
 /// </summary>
-public class JsonRpcSuccessResponse<TResponse>
+[JsonConverter(typeof(JsonRpcResponseConverter))]
+public abstract class JsonRpcResponse<TResponse>
 {
-    /// <summary>
-    /// JSON-RPC protocol version
-    /// </summary>
-    /// <example>2.0</example>
     [JsonPropertyName("jsonrpc")]
     public string JsonRpc { get; set; } = "2.0";
 
-    /// <summary>
-    /// The result of the method invocation
-    /// </summary>
-    [JsonPropertyName("result")]
-    public TResponse Result { get; set; }
-
-    /// <summary>
-    /// The request identifier
-    /// </summary>
-    /// <example>1</example>
     [JsonPropertyName("id")]
     public string Id { get; set; }
 }
 
 /// <summary>
+/// JSON-RPC success response model
+/// </summary>
+public class JsonRpcSuccessResponse<TResponse> : JsonRpcResponse<TResponse>
+{
+    [JsonPropertyName("result")]
+    public TResponse Result { get; set; }
+}
+
+/// <summary>
 /// JSON-RPC error response model
 /// </summary>
-public class JsonRpcErrorResponse
+public class JsonRpcErrorResponse : JsonRpcResponse<object>
 {
-    /// <summary>
-    /// JSON-RPC protocol version
-    /// </summary>
-    /// <example>2.0</example>
-    [JsonPropertyName("jsonrpc")]
-    public string JsonRpc { get; set; } = "2.0";
-
-    /// <summary>
-    /// The error details
-    /// </summary>
     [JsonPropertyName("error")]
     public JsonRpcError Error { get; set; }
+}
 
-    /// <summary>
-    /// The request identifier
-    /// </summary>
-    /// <example>1</example>
-    [JsonPropertyName("id")]
-    public string Id { get; set; }
+public class JsonRpcResponseConverter : JsonConverter<JsonRpcResponse<object>>
+{
+    public override JsonRpcResponse<object> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.StartObject)
+            throw new JsonException();
+            
+        using var jsonDoc = JsonDocument.ParseValue(ref reader);
+        var root = jsonDoc.RootElement;
+
+        // Check if it's an error response by looking for error property
+        if (root.TryGetProperty("error", out _))
+        {
+            return JsonSerializer.Deserialize<JsonRpcErrorResponse>(root.GetRawText(), options);
+        }
+        
+        // Otherwise assume it's a success response
+        // Note: We'll need the type parameter from somewhere to properly deserialize
+        // This might need to be handled differently depending on your needs
+        return JsonSerializer.Deserialize<JsonRpcSuccessResponse<object>>(root.GetRawText(), options) as JsonRpcResponse<object>
+            ?? throw new JsonException("Failed to deserialize response");
+    }
+    
+    public override void Write(Utf8JsonWriter writer, JsonRpcResponse<object> value, JsonSerializerOptions options)
+    {
+        JsonSerializer.Serialize(writer, value, value.GetType(), options);
+    }
 }
 
 /// <summary>

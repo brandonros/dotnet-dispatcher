@@ -5,6 +5,7 @@ using Dispatcher.Services;
 using System.ComponentModel.DataAnnotations;
 using Common.Model.Requests;
 using Common.Model.Responses;
+using MassTransit;
 
 namespace Dispatcher.Controllers;
 
@@ -16,7 +17,6 @@ public class RpcController : ControllerBase
 {
     private readonly ILogger<RpcController> _logger;
     private readonly IServiceProvider _serviceProvider;
-    private readonly Dictionary<JsonRpcMethod, Func<JsonRpcRequestBase, string, Task<IActionResult>>> _handlers;
 
     public RpcController(
         ILogger<RpcController> logger,
@@ -24,10 +24,6 @@ public class RpcController : ControllerBase
     {
         _logger = logger;
         _serviceProvider = serviceProvider;
-        _handlers = new()
-        {
-            { JsonRpcMethod.GetUser, HandleGetUserRequest }
-        };
     }
 
     [HttpPost]
@@ -77,23 +73,27 @@ public class RpcController : ControllerBase
 
     private async Task<IActionResult> HandleGetUserRequest(JsonRpcRequestBase request, string id)
     {
-        var queueService = _serviceProvider.GetService<IQueueService<GetUserRequest, GetUserResponse>>();
+        var queueService = _serviceProvider.GetService<IQueueService<JsonRpcRequest<GetUserRequest>, JsonRpcResponse<GetUserResponse>>>();
         if (queueService == null)
         {
             _logger.LogError("Failed to resolve IQueueService<GetUserRequest, GetUserResponse>");
             return CreateInternalErrorResponse(id);
         }
 
-        try
+        if (request is not GetUserJsonRpcRequest getUserRequest)
         {
-            // this is being hit
-            if (request is not GetUserJsonRpcRequest getUserRequest)
-            {
-                _logger.LogError("Invalid request type");
-                return CreateInvalidParamsResponse(id);
-            }
-            var response = await queueService.RequestResponse(getUserRequest.Params);
-            return Ok(response);
+            return CreateInvalidParamsResponse(id);
+        }
+
+        try 
+        {
+            var response = await queueService.RequestResponse(getUserRequest);
+            return Ok(response.Message);
+        }
+        catch (RequestTimeoutException ex)  // MassTransit specific
+        {
+            _logger.LogError(ex, "Request timed out");
+            return CreateErrorResponse(id, -32000, "Request timed out");
         }
         catch (Exception ex)
         {
@@ -106,7 +106,7 @@ public class RpcController : ControllerBase
     {
         // Validate the request model
         var validationContext = new ValidationContext(request);
-        var validationResults = new List<ValidationResult>();
+        var validationResults = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
         if (!Validator.TryValidateObject(request, validationContext, validationResults, true))
         {
             var error = validationResults.FirstOrDefault();
@@ -176,6 +176,17 @@ public class RpcController : ControllerBase
             {
                 Code = -32603,
                 Message = "Internal error"
+            }
+        });
+
+    private IActionResult CreateErrorResponse(string id, int code, string message) =>
+        BadRequest(new JsonRpcErrorResponse
+        {
+            Id = id,
+            Error = new JsonRpcError
+            {
+                Code = code,
+                Message = message
             }
         });
 }

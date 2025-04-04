@@ -37,7 +37,7 @@ jobs:
           context: ./src/
           file: ./src/Dockerfile.Consumer
           push: true
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           tags: |
             ghcr.io/${{ env.REPO_NAME }}/consumer:latest
             ghcr.io/${{ env.REPO_NAME }}/consumer:${{ github.sha }}
@@ -48,7 +48,7 @@ jobs:
           context: ./src/
           file: ./src/Dockerfile.Dispatcher
           push: true
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           tags: |
             ghcr.io/${{ env.REPO_NAME }}/dispatcher:latest
             ghcr.io/${{ env.REPO_NAME }}/dispatcher:${{ github.sha }}

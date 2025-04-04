@@ -1,6 +1,7 @@
 using Common.Model.Requests;
 using Dispatcher.Services;
 using MassTransit;
+
 namespace Dispatcher.Extensions;
 
 public static class ServiceCollectionExtensions
@@ -10,6 +11,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped(typeof(IQueueService<,>), typeof(QueueService<,>));
         services.AddMassTransit(x =>
         {
+            x.AddRequestClient<GetUserRequest>(new Uri("exchange:x.user.get"), RequestTimeout.After(s: 5));
             x.UsingRabbitMq((context, config) =>
             {
                 var uri = new Uri(Environment.GetEnvironmentVariable("RABBITMQ_URI") ?? null);
@@ -20,7 +22,6 @@ public static class ServiceCollectionExtensions
                 });
                 config.ConfigureEndpoints(context);
             });
-            x.AddRequestClient<GetUserRequest>(new Uri("exchange:x.user.get"), RequestTimeout.After(s: 5));
         });
         return services;
     }

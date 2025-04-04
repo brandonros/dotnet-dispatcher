@@ -16,13 +16,11 @@ namespace Dispatcher.Services
         where TRequest : class
         where TResponse : class
     {
-        private readonly IBus _bus;
         private readonly IRequestClient<TRequest> _client;
         private readonly ILogger<QueueService<TRequest, TResponse>> _logger;
 
-        public QueueService(IBus bus, IRequestClient<TRequest> client, ILogger<QueueService<TRequest, TResponse>> logger)
+        public QueueService(IRequestClient<TRequest> client, ILogger<QueueService<TRequest, TResponse>> logger)
         {
-            _bus = bus ?? throw new ArgumentNullException(nameof(bus));
             _client = client ?? throw new ArgumentNullException(nameof(client));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }

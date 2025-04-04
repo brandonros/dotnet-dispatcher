@@ -5,7 +5,7 @@ using MassTransit;
 
 namespace Consumer.Handlers;
     
-public class GetUserHandler : IConsumer<JsonRpcRequest<GetUserRequest>>
+public class GetUserHandler : IConsumer<GetUserJsonRpcRequest>
 {
     private readonly ILogger<GetUserHandler> _logger;
 
@@ -15,7 +15,7 @@ public class GetUserHandler : IConsumer<JsonRpcRequest<GetUserRequest>>
         _logger = logger;
     }
 
-    public async Task Consume(ConsumeContext<JsonRpcRequest<GetUserRequest>> context)
+    public async Task Consume(ConsumeContext<GetUserJsonRpcRequest> context)
     {
         _logger.LogInformation("Received JsonRpc request with ID: {Id}", context.Message.Id);
 

@@ -13,7 +13,6 @@ public static class ServiceCollectionExtensions
         services.AddMassTransit(x =>
         {
             x.AddConsumer<GetUserHandler>();
-
             x.UsingRabbitMq((context, config) =>
             {
                 var uri = new Uri(Environment.GetEnvironmentVariable("RABBITMQ_URI") ?? null);
