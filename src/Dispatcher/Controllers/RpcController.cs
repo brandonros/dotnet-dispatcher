@@ -1,11 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
-using Common.Model;
 using Dispatcher.Services;
 using System.ComponentModel.DataAnnotations;
 using Common.Model.Requests;
 using Common.Model.Responses;
 using MassTransit;
+using Common.Model.JsonRpc;
+
 
 namespace Dispatcher.Controllers;
 

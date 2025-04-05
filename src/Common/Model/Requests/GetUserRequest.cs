@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Common.Model.JsonRpc;
 
 namespace Common.Model.Requests;
 

@@ -1,8 +1,7 @@
-using Common.Model;
+using Common.Model.JsonRpc;
 using Common.Model.Requests;
 using Common.Model.Responses;
 using MassTransit;
-using Microsoft.Extensions.Logging;
 
 namespace Consumer.Handlers;
 

@@ -1,9 +1,7 @@
-using Common.Model;
 using Common.Model.Requests;
 using Dispatcher.Services;
 using MassTransit;
-using Microsoft.Extensions.Configuration;
-
+using Common.Model.JsonRpc;
 namespace Dispatcher.Extensions;
 
 public static class ServiceCollectionExtensions
