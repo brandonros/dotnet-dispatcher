@@ -1,16 +1,13 @@
 using Consumer.Handlers;
+using Common.Telemetry;
 using MassTransit;
-using Common.Model.Requests;
-using Common.Model;
-using Microsoft.Extensions.Configuration;
-
 namespace Consumer.Extensions;
 
 public static class ServiceCollectionExtensions
 {
     public static IServiceCollection RegisterServices(this IServiceCollection services)
     {
-        // Configure MassTransit
+        services.RegisterTelemetry();
         services.AddMassTransit(x =>
         {
             // Register consumers to handle JsonRpcRequest wrappers

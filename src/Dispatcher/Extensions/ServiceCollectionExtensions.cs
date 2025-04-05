@@ -1,13 +1,16 @@
-using Common.Model.Requests;
 using Dispatcher.Services;
 using MassTransit;
+using Common.Model.Requests;
 using Common.Model.JsonRpc;
+using Common.Telemetry;
+
 namespace Dispatcher.Extensions;
 
 public static class ServiceCollectionExtensions
 {
     public static IServiceCollection RegisterServices(this IServiceCollection services)
     {
+        services.RegisterTelemetry();
         services.AddScoped(typeof(IQueueService<,>), typeof(QueueService<,>));
         services.AddMassTransit(x =>
         {
