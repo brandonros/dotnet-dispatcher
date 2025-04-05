@@ -2,6 +2,7 @@ using Consumer.Handlers;
 using MassTransit;
 using Common.Model.Requests;
 using Common.Model;
+using Microsoft.Extensions.Configuration;
 
 namespace Consumer.Extensions;
 
@@ -15,12 +16,16 @@ public static class ServiceCollectionExtensions
             x.AddConsumer<GetUserHandler>();
             x.UsingRabbitMq((context, config) =>
             {
-                var uri = new Uri(Environment.GetEnvironmentVariable("RABBITMQ_URI") ?? null);
+                var configuration = context.GetRequiredService<IConfiguration>();
+                var rabbitConfig = configuration.GetSection("RabbitMQ");
+                
+                var uri = new Uri(rabbitConfig["Uri"]);
                 config.Host(uri, "/", h =>
                 {
-                    h.Username(Environment.GetEnvironmentVariable("RABBITMQ_USER") ?? null);
-                    h.Password(Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD") ?? null);
+                    h.Username(rabbitConfig["Username"]);
+                    h.Password(rabbitConfig["Password"]);
                 });
+                
                 config.ReceiveEndpoint("q.user.get", e =>
                 {
                     e.Bind("x.user.get");
