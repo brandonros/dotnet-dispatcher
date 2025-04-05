@@ -42,6 +42,7 @@ public class JsonRpcMethod
     }
 
     public static JsonRpcMethod GetUser => new("user.get");
+    public static JsonRpcMethod GetAccount => new("account.get"); // Add GetAccount method
 
     public override string ToString() => _method;
     public override bool Equals(object obj) => obj is JsonRpcMethod other && other._method == _method;
@@ -118,6 +119,7 @@ public class JsonRpcRequestConverter : JsonConverter<JsonRpcRequestBase>
         JsonRpcRequestBase request = method switch
         {
             "user.get" => new GetUserJsonRpcRequest(),
+            "account.get" => new GetAccountJsonRpcRequest(), // Add case for GetAccount
             _ => new JsonRpcRequestBase()
         };
         
@@ -131,6 +133,7 @@ public class JsonRpcRequestConverter : JsonConverter<JsonRpcRequestBase>
         JsonSerializer.Serialize(writer, value, value.GetType(), options);
     }
 }
+
 
 /// <summary>
 /// Strongly-typed JSON-RPC request
@@ -154,13 +157,67 @@ public class GetUserJsonRpcRequest : JsonRpcRequest<GetUserRequest>
 }
 
 /// <summary>
+/// Add GetAccount request model
+/// </summary>
+public class GetAccountRequest : IJsonRpcParams
+{
+    [Required]
+    [Guid]
+    [JsonPropertyName("accountId")]
+    public string AccountId { get; set; }
+}
+
+/// <summary>
+/// Add GetAccount response model
+/// </summary>
+public class GetAccountResponse
+{
+    [JsonPropertyName("accountId")]
+    public string AccountId { get; set; }
+    
+    [JsonPropertyName("accountName")]
+    public string AccountName { get; set; }
+    
+    [JsonPropertyName("accountType")]
+    public string AccountType { get; set; }
+    
+    [JsonPropertyName("balance")]
+    public decimal Balance { get; set; }
+    
+    [JsonPropertyName("currencyCode")]
+    public string CurrencyCode { get; set; }
+    
+    [JsonPropertyName("createdAt")]
+    public DateTime CreatedAt { get; set; }
+    
+    [JsonPropertyName("isActive")]
+    public bool IsActive { get; set; }
+}
+
+/// <summary>
+/// Add GetAccountJsonRpcRequest type
+/// </summary>
+public class GetAccountJsonRpcRequest : JsonRpcRequest<GetAccountRequest>
+{
+    public GetAccountJsonRpcRequest()
+    {
+        Method = JsonRpcMethod.GetAccount;
+    }
+}
+
+/// <summary>
 /// Base class for all JSON-RPC responses
 /// </summary>
-[JsonConverter(typeof(JsonRpcResponseConverter))]
 public abstract class JsonRpcResponse<TResponse>
 {
+    // Add parameterless constructor
+    protected JsonRpcResponse()
+    {
+        JsonRpc = "2.0";
+    }
+
     [JsonPropertyName("jsonrpc")]
-    public string JsonRpc { get; set; } = "2.0";
+    public string JsonRpc { get; set; }
 
     [JsonPropertyName("id")]
     public string Id { get; set; }
@@ -171,6 +228,11 @@ public abstract class JsonRpcResponse<TResponse>
 /// </summary>
 public class JsonRpcSuccessResponse<TResponse> : JsonRpcResponse<TResponse>
 {
+    // Add parameterless constructor
+    public JsonRpcSuccessResponse() : base()
+    {
+    }
+
     [JsonPropertyName("result")]
     public TResponse Result { get; set; }
 }
@@ -180,37 +242,13 @@ public class JsonRpcSuccessResponse<TResponse> : JsonRpcResponse<TResponse>
 /// </summary>
 public class JsonRpcErrorResponse : JsonRpcResponse<object>
 {
+    // Add parameterless constructor
+    public JsonRpcErrorResponse() : base()
+    {
+    }
+
     [JsonPropertyName("error")]
     public JsonRpcError Error { get; set; }
-}
-
-public class JsonRpcResponseConverter : JsonConverter<JsonRpcResponse<object>>
-{
-    public override JsonRpcResponse<object> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        if (reader.TokenType != JsonTokenType.StartObject)
-            throw new JsonException();
-            
-        using var jsonDoc = JsonDocument.ParseValue(ref reader);
-        var root = jsonDoc.RootElement;
-
-        // Check if it's an error response by looking for error property
-        if (root.TryGetProperty("error", out _))
-        {
-            return JsonSerializer.Deserialize<JsonRpcErrorResponse>(root.GetRawText(), options);
-        }
-        
-        // Otherwise assume it's a success response
-        // Note: We'll need the type parameter from somewhere to properly deserialize
-        // This might need to be handled differently depending on your needs
-        return JsonSerializer.Deserialize<JsonRpcSuccessResponse<object>>(root.GetRawText(), options) as JsonRpcResponse<object>
-            ?? throw new JsonException("Failed to deserialize response");
-    }
-    
-    public override void Write(Utf8JsonWriter writer, JsonRpcResponse<object> value, JsonSerializerOptions options)
-    {
-        JsonSerializer.Serialize(writer, value, value.GetType(), options);
-    }
 }
 
 /// <summary>

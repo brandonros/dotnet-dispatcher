@@ -1,3 +1,4 @@
+using Common.Model;
 using Common.Model.Requests;
 using Dispatcher.Services;
 using MassTransit;
@@ -12,7 +13,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped(typeof(IQueueService<,>), typeof(QueueService<,>));
         services.AddMassTransit(x =>
         {
-            x.AddRequestClient<GetUserRequest>(new Uri("exchange:x.user.get"), RequestTimeout.After(s: 5));
+            // Change this to use JsonRpcRequest<GetUserRequest> instead of just GetUserRequest
+            x.AddRequestClient<JsonRpcRequest<GetUserRequest>>(new Uri("exchange:x.user.get"), RequestTimeout.After(s: 5));
+            
+            // Add the account request client too
+            x.AddRequestClient<JsonRpcRequest<GetAccountRequest>>(new Uri("exchange:x.account.get"), RequestTimeout.After(s: 5));
+            
             x.UsingRabbitMq((context, config) =>
             {
                 var configuration = context.GetRequiredService<IConfiguration>();

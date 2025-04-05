@@ -13,7 +13,10 @@ public static class ServiceCollectionExtensions
         // Configure MassTransit
         services.AddMassTransit(x =>
         {
-            x.AddConsumer<GetUserHandler>();
+            // Register consumers to handle JsonRpcRequest wrappers
+            x.AddConsumer<GetUserJsonRpcRequestHandler>();
+            x.AddConsumer<GetAccountJsonRpcRequestHandler>();
+            
             x.UsingRabbitMq((context, config) =>
             {
                 var configuration = context.GetRequiredService<IConfiguration>();
@@ -26,11 +29,20 @@ public static class ServiceCollectionExtensions
                     h.Password(rabbitConfig["Password"]);
                 });
                 
+                // Configure endpoints for JsonRpcRequest wrapped requests
                 config.ReceiveEndpoint("q.user.get", e =>
                 {
                     e.Bind("x.user.get");
-                    e.ConfigureConsumer<GetUserHandler>(context);
+                    e.ConfigureConsumer<GetUserJsonRpcRequestHandler>(context);
                 });
+                
+                // Add the account endpoint
+                config.ReceiveEndpoint("q.account.get", e =>
+                {
+                    e.Bind("x.account.get");
+                    e.ConfigureConsumer<GetAccountJsonRpcRequestHandler>(context);
+                });
+                
                 config.ConfigureEndpoints(context);
             });
         });

@@ -37,7 +37,7 @@ public class RpcController : ControllerBase
         {
             if (request == null)
             {
-                return CreateInvalidRequestResponse("Invalid request");
+                return CreateErrorResponse(null, JsonRpcErrorCodes.InvalidRequest, "Invalid request");
             }
 
             if (!ValidateRequest(request, out var errorResponse))
@@ -50,73 +50,86 @@ public class RpcController : ControllerBase
 
             _logger.LogInformation($"RPC request received: {methodStr} with id {id}");
 
-            // Type-specific handling based on the concrete type
-            switch (request)
+            // Dispatch to appropriate handler based on method
+            return methodStr switch
             {
-                case GetUserJsonRpcRequest getUserRequest:
-                    return await HandleGetUserRequest(getUserRequest, id);
-                default:
-                    return CreateMethodNotFoundResponse(id);
-            }
+                "user.get" => await HandleTypedRequest<GetUserJsonRpcRequest, GetUserRequest, GetUserResponse>(request, id),
+                "account.get" => await HandleTypedRequest<GetAccountJsonRpcRequest, GetAccountRequest, GetAccountResponse>(request, id),
+                _ => CreateErrorResponse(id, JsonRpcErrorCodes.MethodNotFound, "Method not found")
+            };
         }
         catch (JsonException ex)
         {
             _logger.LogError(ex, "Error parsing JSON-RPC request");
-            return CreateParseErrorResponse();
+            return CreateErrorResponse(null, JsonRpcErrorCodes.ParseError, "Parse error");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing RPC request");
-            return CreateInternalErrorResponse(null);
+            return CreateErrorResponse(null, JsonRpcErrorCodes.InternalError, "Internal error");
         }
     }
 
-    private async Task<IActionResult> HandleGetUserRequest(JsonRpcRequestBase request, string id)
+    private async Task<IActionResult> HandleTypedRequest<TJsonRpcRequest, TRequest, TResponse>(JsonRpcRequestBase request, string id)
+        where TJsonRpcRequest : JsonRpcRequest<TRequest>
+        where TRequest : IJsonRpcParams
+        where TResponse : class
     {
-        var queueService = _serviceProvider.GetService<IQueueService<JsonRpcRequest<GetUserRequest>, JsonRpcResponse<GetUserResponse>>>();
+        _logger.LogInformation($"Starting HandleTypedRequest for ID: {id}, Type: {typeof(TRequest).Name}");
+        
+        var queueService = _serviceProvider.GetService<IQueueService<JsonRpcRequest<TRequest>, JsonRpcSuccessResponse<TResponse>>>();
         if (queueService == null)
         {
-            _logger.LogError("Failed to resolve IQueueService<GetUserRequest, GetUserResponse>");
-            return CreateInternalErrorResponse(id);
+            _logger.LogError($"Failed to resolve IQueueService for {typeof(TRequest).Name} and {typeof(TResponse).Name}");
+            return CreateErrorResponse(id, JsonRpcErrorCodes.InternalError, "Internal error");
         }
 
-        if (request is not GetUserJsonRpcRequest getUserRequest)
+        if (request is not TJsonRpcRequest typedRequest)
         {
-            return CreateInvalidParamsResponse(id);
+            _logger.LogError($"Request is not compatible with {typeof(TJsonRpcRequest).Name}");
+            return CreateErrorResponse(id, JsonRpcErrorCodes.InvalidParams, "Invalid params");
         }
-
+        
         try 
         {
-            var response = await queueService.RequestResponse(getUserRequest);
-            return Ok(response.Message);
+            _logger.LogInformation($"Sending request to queue service. RequestId: {id}");
+            
+            var response = await queueService.RequestResponse(typedRequest);
+            
+            _logger.LogInformation($"Received response from queue service for RequestId: {id}");
+            
+            // Return the success response directly
+            return Ok(response);
         }
-        catch (RequestTimeoutException ex)  // MassTransit specific
+        catch (RequestTimeoutException ex)
         {
-            _logger.LogError(ex, "Request timed out");
-            return CreateErrorResponse(id, -32000, "Request timed out");
+            _logger.LogError(ex, $"Request timed out for ID: {id}");
+            return CreateErrorResponse(id, JsonRpcErrorCodes.ServerError, "Request timed out");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error handling get user request");
-            return CreateInternalErrorResponse(id);
+            _logger.LogError(ex, $"Error handling {typeof(TRequest).Name} request: {ex.Message}");
+            return CreateErrorResponse(id, JsonRpcErrorCodes.InternalError, "Internal error");
         }
     }
 
+
     private bool ValidateRequest(JsonRpcRequestBase request, out IActionResult errorResponse)
     {
-        // Validate the request model
+        // Check for null request or method
+        if (request == null || string.IsNullOrEmpty(request.Method?.ToString()))
+        {
+            errorResponse = CreateErrorResponse(null, JsonRpcErrorCodes.InvalidRequest, "Invalid Request");
+            return false;
+        }
+
+        // Validate using data annotations
         var validationContext = new ValidationContext(request);
         var validationResults = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
         if (!Validator.TryValidateObject(request, validationContext, validationResults, true))
         {
             var error = validationResults.FirstOrDefault();
-            errorResponse = CreateInvalidRequestResponse(error?.ErrorMessage);
-            return false;
-        }
-
-        if (request == null || string.IsNullOrEmpty(request.Method.ToString()))
-        {
-            errorResponse = CreateInvalidRequestResponse("Invalid Request");
+            errorResponse = CreateErrorResponse(request.Id, JsonRpcErrorCodes.InvalidRequest, error?.ErrorMessage ?? "Invalid Request");
             return false;
         }
 
@@ -124,63 +137,9 @@ public class RpcController : ControllerBase
         return true;
     }
 
-    private IActionResult CreateInvalidRequestResponse(string message) =>
-        BadRequest(new JsonRpcErrorResponse
-        {
-            Id = null,
-            Error = new JsonRpcError
-            {
-                Code = -32600,
-                Message = message ?? "Invalid Request"
-            }
-        });
-
-    private IActionResult CreateMethodNotFoundResponse(string id) =>
-        BadRequest(new JsonRpcErrorResponse
-        {
-            Id = id,
-            Error = new JsonRpcError
-            {
-                Code = -32601,
-                Message = "Method not found"
-            }
-        });
-
-    private IActionResult CreateInvalidParamsResponse(string id) =>
-        BadRequest(new JsonRpcErrorResponse
-        {
-            Id = id,
-            Error = new JsonRpcError
-            {
-                Code = -32602,
-                Message = "Invalid params"
-            }
-        });
-
-    private IActionResult CreateParseErrorResponse() =>
-        BadRequest(new JsonRpcErrorResponse
-        {
-            Id = null,
-            Error = new JsonRpcError
-            {
-                Code = -32700,
-                Message = "Parse error"
-            }
-        });
-
-    private IActionResult CreateInternalErrorResponse(string id) =>
-        StatusCode(500, new JsonRpcErrorResponse
-        {
-            Id = id,
-            Error = new JsonRpcError
-            {
-                Code = -32603,
-                Message = "Internal error"
-            }
-        });
-
-    private IActionResult CreateErrorResponse(string id, int code, string message) =>
-        BadRequest(new JsonRpcErrorResponse
+    private IActionResult CreateErrorResponse(string id, int code, string message)
+    {
+        var response = new JsonRpcErrorResponse
         {
             Id = id,
             Error = new JsonRpcError
@@ -188,5 +147,23 @@ public class RpcController : ControllerBase
                 Code = code,
                 Message = message
             }
-        });
+        };
+
+        return code switch
+        {
+            JsonRpcErrorCodes.InternalError => StatusCode(500, response),
+            _ => BadRequest(response)
+        };
+    }
+}
+
+// Define standard JSON-RPC error codes in a separate class for clarity
+public static class JsonRpcErrorCodes
+{
+    public const int ParseError = -32700;
+    public const int InvalidRequest = -32600;
+    public const int MethodNotFound = -32601;
+    public const int InvalidParams = -32602;
+    public const int InternalError = -32603;
+    public const int ServerError = -32000; // Used for timeouts and other server-specific errors
 }
