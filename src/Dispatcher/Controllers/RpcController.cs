@@ -1,12 +1,11 @@
-using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
-using Dispatcher.Services;
-using System.ComponentModel.DataAnnotations;
+using Common.Model.JsonRpc;
 using Common.Model.Requests;
 using Common.Model.Responses;
+using Dispatcher.Services;
 using MassTransit;
-using Common.Model.JsonRpc;
-
+using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 
 namespace Dispatcher.Controllers;
 
@@ -29,7 +28,8 @@ public class RpcController : ControllerBase
 
     [HttpPost]
     [Route("/rpc")]
-    [ProducesResponseType(typeof(JsonRpcSuccessResponse<object>), 200)]
+    [ProducesResponseType(typeof(JsonRpcSuccessResponse<GetUserResponse>), 200)]
+    [ProducesResponseType(typeof(JsonRpcSuccessResponse<GetAccountResponse>), 200)]
     [ProducesResponseType(typeof(JsonRpcErrorResponse), 400)]
     [ProducesResponseType(typeof(JsonRpcErrorResponse), 500)]
     public async Task<IActionResult> HandleRpc([FromBody] JsonRpcRequestBase request)
@@ -114,7 +114,6 @@ public class RpcController : ControllerBase
         }
     }
 
-
     private bool ValidateRequest(JsonRpcRequestBase request, out IActionResult errorResponse)
     {
         // Check for null request or method
@@ -156,15 +155,4 @@ public class RpcController : ControllerBase
             _ => BadRequest(response)
         };
     }
-}
-
-// Define standard JSON-RPC error codes in a separate class for clarity
-public static class JsonRpcErrorCodes
-{
-    public const int ParseError = -32700;
-    public const int InvalidRequest = -32600;
-    public const int MethodNotFound = -32601;
-    public const int InvalidParams = -32602;
-    public const int InternalError = -32603;
-    public const int ServerError = -32000; // Used for timeouts and other server-specific errors
 }
