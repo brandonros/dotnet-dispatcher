@@ -15,7 +15,7 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection RegisterTelemetry(this IServiceCollection services, IConfiguration configuration)
     {
-        var serviceName = Assembly.GetExecutingAssembly().GetName().Name!;
+        var serviceName = Assembly.GetCallingAssembly().GetName().Name!;
         var telemetryConfig = configuration.GetSection("Telemetry");
         
         var tracesEndpoint = new Uri(telemetryConfig["TracesEndpoint"] ?? "http://localhost:4318/v1/traces");
@@ -24,16 +24,16 @@ public static class ServiceCollectionExtensions
         services.AddOpenTelemetry()
             .ConfigureResource(resource => resource.AddService(serviceName))
             .WithTracing(tracing => tracing
-                .SetSampler(new AlwaysOnSampler())  // Add this to ensure all telemetry is captured
+                .SetSampler(new AlwaysOnSampler())
                 .AddHttpClientInstrumentation()
                 .AddAspNetCoreInstrumentation(options => 
                 {
                     options.RecordException = true;
-                    // Add filter to ensure we capture your ping endpoint
                     options.Filter = (httpContext) => true; 
                 })
                 .AddSource("MassTransit")
                 .AddSource("Microsoft.AspNetCore.Hosting")
+                .AddSource("Microsoft.AspNetCore.Server.Kestrel")
                 .AddSource(serviceName)
                 .AddOtlpExporter(e => {
                     e.Endpoint = tracesEndpoint;
@@ -41,13 +41,14 @@ public static class ServiceCollectionExtensions
                 }))
             .WithMetrics(metrics => metrics
                 .AddAspNetCoreInstrumentation()
-                .AddHttpClientInstrumentation() // Add this for HTTP client metrics
+                .AddHttpClientInstrumentation()
                 .AddProcessInstrumentation()
                 .AddRuntimeInstrumentation()
                 .AddMeter("MassTransit")
                 .AddMeter("Microsoft.AspNetCore.Hosting")
                 .AddMeter("Microsoft.AspNetCore.Routing")
                 .AddMeter("Microsoft.AspNetCore.Server.Kestrel")
+                .AddMeter("System.Runtime")
                 .AddMeter("System.Net.Http")
                 .AddMeter("System.Net.NameResolution")
                 .AddOtlpExporter(e => {
