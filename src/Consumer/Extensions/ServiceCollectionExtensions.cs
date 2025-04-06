@@ -1,9 +1,10 @@
 using Consumer.Handlers;
 using Common.Telemetry;
 using MassTransit;
-using Microsoft.Extensions.Configuration;
+
 namespace Consumer.Extensions;
 
+// Consumer
 public static class ServiceCollectionExtensions
 {
     public static IServiceCollection RegisterServices(this IServiceCollection services, IConfiguration configuration)
@@ -31,6 +32,7 @@ public static class ServiceCollectionExtensions
                 {
                     e.Bind("x.user.get");
                     e.ConfigureConsumer<GetUserJsonRpcRequestHandler>(context);
+                    e.Durable = true;
                 });
                 
                 // Add the account endpoint
@@ -38,6 +40,7 @@ public static class ServiceCollectionExtensions
                 {
                     e.Bind("x.account.get");
                     e.ConfigureConsumer<GetAccountJsonRpcRequestHandler>(context);
+                    e.Durable = true;
                 });
                 
                 config.ConfigureEndpoints(context);

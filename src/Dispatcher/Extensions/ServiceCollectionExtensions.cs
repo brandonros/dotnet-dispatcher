@@ -6,6 +6,7 @@ using Common.Telemetry;
 
 namespace Dispatcher.Extensions;
 
+// Dispatcher
 public static class ServiceCollectionExtensions
 {
     public static IServiceCollection RegisterServices(this IServiceCollection services, IConfiguration configuration)
@@ -30,6 +31,7 @@ public static class ServiceCollectionExtensions
                     h.Username(rabbitConfig["Username"]);
                     h.Password(rabbitConfig["Password"]);
                 });
+                
                 config.ConfigureEndpoints(context);
             });
         });
