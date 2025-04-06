@@ -21,7 +21,7 @@ public class JsonRpcRequestConverter : JsonConverter<JsonRpcRequestBase>
         {
             "user.get" => new GetUserJsonRpcRequest(),
             "account.get" => new GetAccountJsonRpcRequest(), // Add case for GetAccount
-            _ => new JsonRpcRequestBase()
+            _ => throw new JsonException($"Unknown or invalid method: '{method}'")
         };
         
         // Deserialize into the specific type
