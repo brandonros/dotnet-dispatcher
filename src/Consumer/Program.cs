@@ -1,5 +1,5 @@
 using Consumer.Extensions;
-
+using Common.Telemetry;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add configuration sources explicitly
@@ -19,6 +19,7 @@ builder.Services.AddSwaggerGen();
 // Add logging configuration
 builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole();
+builder.AddTelemetryLogging(builder.Configuration);
 
 var app = builder.Build();
 
