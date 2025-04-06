@@ -30,17 +30,17 @@ public static class ServiceCollectionExtensions
                 // Configure endpoints for JsonRpcRequest wrapped requests
                 config.ReceiveEndpoint("q.user.get", e =>
                 {
+                    e.Durable = true;
                     e.Bind("x.user.get");
                     e.ConfigureConsumer<GetUserJsonRpcRequestHandler>(context);
-                    e.Durable = true;
                 });
                 
                 // Add the account endpoint
                 config.ReceiveEndpoint("q.account.get", e =>
                 {
+                    e.Durable = true;
                     e.Bind("x.account.get");
                     e.ConfigureConsumer<GetAccountJsonRpcRequestHandler>(context);
-                    e.Durable = true;
                 });
                 
                 config.ConfigureEndpoints(context);
