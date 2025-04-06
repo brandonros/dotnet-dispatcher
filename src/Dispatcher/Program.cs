@@ -1,4 +1,6 @@
+using System.Diagnostics.Tracing;
 using Dispatcher.Extensions;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,9 +11,8 @@ builder.Configuration
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
     .AddEnvironmentVariables();
 
-
 // Add services to the container.
-builder.Services.RegisterServices();
+builder.Services.RegisterServices(builder.Configuration);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

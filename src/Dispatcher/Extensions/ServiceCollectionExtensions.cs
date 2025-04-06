@@ -8,9 +8,9 @@ namespace Dispatcher.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection RegisterServices(this IServiceCollection services)
+    public static IServiceCollection RegisterServices(this IServiceCollection services, IConfiguration configuration)
     {
-        services.RegisterTelemetry();
+        services.RegisterTelemetry(configuration);
         services.AddScoped(typeof(IQueueService<,>), typeof(QueueService<,>));
         services.AddMassTransit(x =>
         {
@@ -22,7 +22,6 @@ public static class ServiceCollectionExtensions
             
             x.UsingRabbitMq((context, config) =>
             {
-                var configuration = context.GetRequiredService<IConfiguration>();
                 var rabbitConfig = configuration.GetSection("RabbitMQ");
                 
                 var uri = new Uri(rabbitConfig["Uri"]);
