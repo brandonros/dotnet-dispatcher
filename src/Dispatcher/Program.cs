@@ -20,7 +20,7 @@ builder.Services.AddSwaggerGen();
 
 // Add logging configuration
 builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
+builder.Logging.AddJsonConsole();
 
 var app = builder.Build();
 
