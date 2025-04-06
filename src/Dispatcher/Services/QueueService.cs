@@ -28,9 +28,10 @@ namespace Dispatcher.Services
         public async Task<Response<TResponse>> RequestResponse(TRequest request)
         {
             _logger.LogInformation("Sending request of type {RequestType}", typeof(TRequest).Name);
-            
-            var response = _client.Create(request);
-            var result = await response.GetResponse<TResponse>();
+
+            var requestHandle = _client.Create(request);
+            requestHandle.TimeToLive = TimeSpan.FromSeconds(3600);
+            var result = await requestHandle.GetResponse<TResponse>();
             
             _logger.LogInformation("Received response of type {ResponseType}", typeof(TResponse).Name);
             
