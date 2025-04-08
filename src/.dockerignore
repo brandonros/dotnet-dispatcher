@@ -1,0 +1,70 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+build/
+bld/
+[Bb]uild[Ll]og.*
+
+# Visual Studio files
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.suo
+*.cache
+*.csproj.user
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*.*~
+
+# NuGet
+*.nupkg
+**/packages/*
+!**/packages/build/
+*.nuget.props
+*.nuget.targets
+
+# Test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+TestResults/
+
+# .NET Core
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Docker
+Dockerfile*
+docker-compose*
+.docker/
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Misc
+*.log
+.DS_Store
+thumbs.db
+desktop.ini
+
+# Environment files
+*.env
+.env.*
+
+# Documentation
+README.md
+LICENSE
+*.md
+docs/

@@ -100,7 +100,7 @@ public class RpcController : ControllerBase
             _logger.LogInformation($"Received response from queue service for RequestId: {id}");
             
             // Return the success response directly
-            return Ok(response);
+            return Ok(response.Message);
         }
         catch (RequestTimeoutException ex)
         {
