@@ -1,0 +1,31 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Build and run tests
+      working-directory: src
+      run: |
+        docker compose build
+        # Run the services and tests, exit code will reflect test results
+        docker compose up --exit-code-from integration-tests integration-tests
+
+    - name: Docker Compose Logs (on failure)
+      if: failure()
+      working-directory: src
+      run: docker compose logs
+
+    - name: Cleanup
+      if: always()
+      working-directory: src
+      run: docker compose down
