@@ -46,12 +46,27 @@ services:
     ports:
       - "5000:5000"
 
+  auth_proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.AuthProxy
+    container_name: auth_proxy
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - RabbitMQ__Uri=amqp://rabbitmq:5672
+      - ASPNETCORE_ENVIRONMENT=Development
+    ports:
+      - "5002:5002"
+
   integration_tests:
     build:
       context: .
       dockerfile: Dockerfile.IntegrationTests
     container_name: integration_tests
     depends_on:
+      - auth_proxy
       - dispatcher
       - consumer
       - rabbitmq
